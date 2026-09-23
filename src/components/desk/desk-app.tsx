@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy, Download, Square } from "lucide-react";
 import { engine, midiName } from "@/lib/audio/engine";
 import { encodeBassMidi } from "@/lib/midi/export";
@@ -37,6 +37,10 @@ export function DeskApp() {
 
   const groove = grooveById(grooveId);
   const recipe = recipeById(recipeId);
+  const grooveRef = useRef(groove);
+  const recipeRef = useRef(recipe);
+  grooveRef.current = groove;
+  recipeRef.current = recipe;
   const sheet = useMemo(() => punchList(groove, recipe), [groove, recipe]);
 
   useEffect(() => {
@@ -89,20 +93,25 @@ export function DeskApp() {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
+      const g = grooveRef.current;
+      const r = recipeRef.current;
+      const go = (next: PlayMode) => {
+        void engine.play(next, g, r).catch(() => setStatus("Live bass samples did not load. Try again."));
+      };
       if (e.code === "Space") {
         e.preventDefault();
-        void run("hook");
+        go("hook");
       } else if (e.key === "a" || e.key === "A") {
-        void run("floor");
+        go("floor");
       } else if (e.key === "4") {
-        void run("solo");
+        go("solo");
       } else if (e.key === "Escape") {
         engine.stop();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, []);
 
   async function run(next: PlayMode) {
     try {
